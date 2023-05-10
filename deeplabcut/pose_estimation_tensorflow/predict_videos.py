@@ -288,6 +288,7 @@ def analyze_videos(
     calibrate=False,
     identity_only=False,
     use_openvino="CPU" if is_openvino_available else None,
+    folder=None
 ):
     """Makes prediction based on a trained network.
 
@@ -406,6 +407,9 @@ def analyze_videos(
     use_openvino: str, optional
         Use "CPU" for inference if OpenVINO is available in the Python environment.
 
+    folder: str
+        Full path of bounding box coords folder.
+
     Returns
     -------
     pandas array
@@ -437,7 +441,7 @@ def analyze_videos(
     Analyze all videos of type ``avi`` in a folder
 
     >>> deeplabcut.analyze_videos(
-            '/analysis/project/reaching-task/config.yaml',
+        '/analysis/project/reaching-task/config.yaml',
             ['/analysis/project/videos'],
             videotype='.avi',
         )
@@ -677,6 +681,7 @@ def analyze_videos(
                     TFGPUinference,
                     dynamic,
                     use_openvino,
+                    folder
                 )
 
         os.chdir(str(start_path))
@@ -919,10 +924,22 @@ def getboundingbox(x, y, nx, ny, margin):
     return x1, x2, y1, y2
 
 
+def read_bounding_boxes(folder):
+    # [x1, y1, x2, y2] where xy1 = top - left, xy2 = bottom - right
+    horse_bbox = {}
+    for index, file in enumerate(os.listdir(folder)):
+        with open(folder + os.sep + file) as f:
+            for line in f:
+                obj_class, x1, y1, x2, y2 = line.split()
+                horse_bbox[index] = [x1, y1, x2, y2]
+    return horse_bbox
+
+
 def GetPoseDynamic(
-    cfg, dlc_cfg, sess, inputs, outputs, cap, nframes, detectiontreshold, margin
+    cfg, dlc_cfg, sess, inputs, outputs, cap, nframes, detectiontreshold, margin, folder
 ):
     """Non batch wise pose estimation for video cap by dynamically cropping around previously detected parts."""
+    horse_bbox = read_bounding_boxes(folder)
     if cfg["cropping"]:
         ny, nx = checkcropping(cfg, cap)
     else:
@@ -942,6 +959,7 @@ def GetPoseDynamic(
             pbar.update(step)
 
         ret, frame = cap.read()
+
         if ret:
             # print(counter,x1,x2,y1,y2,detected)
             originalframe = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -949,6 +967,10 @@ def GetPoseDynamic(
                 frame = img_as_ubyte(
                     originalframe[cfg["y1"] : cfg["y2"], cfg["x1"] : cfg["x2"]]
                 )[y1:y2, x1:x2]
+            elif folder:
+                coords = horse_bbox[counter]
+                x1, x2, y1, y2 = int(coords[1]), int(coords[2]), int(coords[3]), int(coords[4])
+                frame = img_as_ubyte(originalframe[y1:y2, x1:x2])
             else:
                 frame = img_as_ubyte(originalframe[y1:y2, x1:x2])
 
@@ -1008,6 +1030,7 @@ def AnalyzeVideo(
     TFGPUinference=True,
     dynamic=(False, 0.5, 10),
     use_openvino="CPU" if is_openvino_available else None,
+    folder=None
 ):
     """Helper function for analyzing a video."""
     print("Starting to analyze % ", video)
@@ -1063,6 +1086,7 @@ def AnalyzeVideo(
                 nframes,
                 detectiontreshold,
                 margin,
+                folder
             )
             # GetPoseF_GTF(cfg,dlc_cfg, sess, inputs, outputs,cap,nframes,int(dlc_cfg["batch_size"]))
         else:
