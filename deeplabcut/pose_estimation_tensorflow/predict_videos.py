@@ -940,6 +940,7 @@ def GetPoseDynamic(
 ):
     """Non batch wise pose estimation for video cap by dynamically cropping around previously detected parts."""
     horse_bbox = read_bounding_boxes(folder)
+    print(horse_bbox)
     if cfg["cropping"]:
         ny, nx = checkcropping(cfg, cap)
     else:
@@ -961,7 +962,7 @@ def GetPoseDynamic(
         ret, frame = cap.read()
 
         if ret:
-            # print(counter,x1,x2,y1,y2,detected)
+            print(counter,x1,x2,y1,y2,detected)
             originalframe = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             if cfg["cropping"]:
                 frame = img_as_ubyte(
@@ -969,6 +970,7 @@ def GetPoseDynamic(
                 )[y1:y2, x1:x2]
             elif folder:
                 coords = horse_bbox[counter]
+                print(coords)
                 x1, x2, y1, y2 = int(coords[1]), int(coords[2]), int(coords[3]), int(coords[4])
                 frame = img_as_ubyte(originalframe[y1:y2, x1:x2])
             else:
@@ -976,6 +978,7 @@ def GetPoseDynamic(
 
             pose = predict.getpose(frame, dlc_cfg, sess, inputs, outputs).flatten()
             detection = np.any(pose[2::3] > detectiontreshold)  # is anything detected?
+            print(detection)
             if detection:
                 pose[0::3], pose[1::3] = (
                     pose[0::3] + x1,
@@ -1118,6 +1121,7 @@ def AnalyzeVideo(
                     )
 
         stop = time.time()
+        print("After prediction")
         if cfg["cropping"] == True:
             coords = [cfg["x1"], cfg["x2"], cfg["y1"], cfg["y2"]]
         else:
