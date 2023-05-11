@@ -927,7 +927,7 @@ def getboundingbox(x, y, nx, ny, margin):
 def read_bounding_boxes(folder):
     # [x1, y1, x2, y2] where xy1 = top - left, xy2 = bottom - right
     horse_bbox = {}
-    for index, file in enumerate(os.listdir(folder)):
+    for index, file in enumerate(sorted(os.listdir(folder), key=lambda x: int(x.split('-')[4][:-4]))):
         with open(folder + os.sep + file) as f:
             for line in f:
                 obj_class, x1, y1, x2, y2 = line.split()
